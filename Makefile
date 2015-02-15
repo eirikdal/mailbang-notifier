@@ -1,9 +1,9 @@
 TARGET   = mailbang-notifier
 
 CC       = gcc
-CFLAGS   = -std=c99 -Wall -I.
-LINKER   = gcc -o
-LFLAGS   = -Wall -I. -lm
+CFLAGS   = -std=c99 -Wall -I. $(shell pkg-config --cflags libnotify gmime-2.6)
+LINKER   = gcc -o 
+LFLAGS   = -Wall -I. -lm $(shell pkg-config --libs libnotify gmime-2.6)
 
 SRCDIR   = src
 OBJDIR   = obj
