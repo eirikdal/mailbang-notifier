@@ -66,23 +66,6 @@ int readmail(const char *file) {
     return EXIT_SUCCESS;
 }
 
-int whist(const char *name) {
-    FILE *fp;
-    int i;
-
-    fp = fopen("hist.dat", "a");
-
-    if (fp == NULL) {
-        printf("I couldn't open results.dat for writing.\n");
-        exit(0);
-    }
-
-    fprintf(fp, "%s\n", name);
-    fclose(fp);
-    return EXIT_SUCCESS;
-}
-
-
 GHashTable *rdhist() {
     FILE *ifp;
     char *mode = "r+";
@@ -91,7 +74,7 @@ GHashTable *rdhist() {
     GHashTable* hash = g_hash_table_new(g_str_hash, g_str_equal);
 
 
-    ifp = fopen("hist.dat", mode);
+    ifp = fopen("hist.dat", "ab+");
 
     if (ifp == NULL) {
         fprintf(stderr, "Can't open history!\n");
@@ -118,9 +101,6 @@ int lsdir(const char* dirarg) {
         while ((ent = readdir (dir)) != NULL) {
             if( strcmp(ent->d_name, ".") != 0 && strcmp(ent->d_name, "..") != 0 ) {
                 if (g_hash_table_lookup(histTable, ent->d_name) == NULL) {
-                    // write to history
-                    /* whist(ent->d_name); */
-
                     g_hash_table_replace(histTable, ent->d_name, 1);
                     // start notification process
                     sprintf(fpath, "%s%s%s", dirarg, "/", ent->d_name);
@@ -140,7 +120,7 @@ int lsdir(const char* dirarg) {
     FILE *fp;
     int i;
 
-    fp = fopen("hist.dat", "w");
+    fp = fopen("hist.dat", "ab+");
 
     if (fp == NULL) {
         printf("I couldn't open results.dat for writing.\n");
