@@ -28,8 +28,6 @@ parse_message (int fd)
     g_object_unref (stream);
     message = g_mime_parser_construct_message (parser);
     g_object_unref (parser);
-
-    g_object_unref (message);
     return message;
 }
 
@@ -62,6 +60,7 @@ int readmail(const char *file) {
     message = parse_message (fd);
 
     notify(message);
+    g_object_unref (message);
 
     return EXIT_SUCCESS;
 }
