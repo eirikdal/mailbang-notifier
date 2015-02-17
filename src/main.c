@@ -1,11 +1,12 @@
 #include <stdio.h>
+#include <sys/stat.h>
+#include <fcntl.h>
 #include <stdlib.h>
 #include <dirent.h>
 #include <glob.h>
 #include <libnotify/notify.h>
 #include <glib.h>
 #include <unistd.h>
-#include "inc/config.h"
 #include <gmime/gmime.h>
 
 #ifndef MAIN_H
@@ -20,28 +21,22 @@ parse_message (int fd)
     GMimeParser *parser;
     GMimeStream *stream;
 
-    /* create a stream to read from the file descriptor */
+    g_mime_init (0);
+
     stream = g_mime_stream_fs_new (fd);
-
-    /* create a new parser object to parse the stream */
     parser = g_mime_parser_new_with_stream (stream);
-
-    /* unref the stream (parser owns a ref, so this object does not actually get free'd until we destroy the parser) */
     g_object_unref (stream);
-
-    /* parse the message from the stream */
     message = g_mime_parser_construct_message (parser);
-
-    /* free the parser (and the stream) */
     g_object_unref (parser);
 
+    g_object_unref (message);
     return message;
 }
 
-int notify() {
+int notify(GMimeMessage *message) {
     NotifyNotification *n;
     notify_init("mbangnotify");
-    n = notify_notification_new ("Ny mail!",NULL, NULL);
+    n = notify_notification_new (g_mime_message_get_subject(message),NULL, NULL);
     notify_notification_set_timeout(n, 3000); //3 seconds
     if (!notify_notification_show (n, NULL)) {
         g_error("Failed to send notification.\n");
@@ -52,55 +47,88 @@ int notify() {
 }
 
 int readmail(const char *file) {
-    FILE *ifp;
     char *mode = "r+";
     char key[100];
     char val[100];
     GMimeMessage *message;
     int fd;
 
-    printf("%s", file);
-    ifp = fopen(file, mode);
-
-    if (ifp == NULL) {
-        fprintf(stderr, "Can't open config file %s!\n", file);
-        return 0;
-    }
-
-    notify();
-
-    if ((fd = open (file, "r", 0)) == -1) {
+    if ((fd = open (file, O_RDONLY, 0)) == -1) {
         fprintf (stderr, "Cannot open message `%s': %s\n", file, g_strerror (errno));
         return 0;
     }
 
-    /* init the gmime library */
-    g_mime_init (0);
-
     /* parse the message */
     message = parse_message (fd);
 
-    while (fscanf(ifp, "%s %[^\n]", key, val) != EOF) {
-        message = parse_message (fd);
+    notify(message);
+
+    return EXIT_SUCCESS;
+}
+
+int whist(const char *name) {
+    FILE *fp;
+    int i;
+
+    fp = fopen("hist.dat", "a");
+
+    if (fp == NULL) {
+        printf("I couldn't open results.dat for writing.\n");
+        exit(0);
+    }
+
+    fprintf(fp, "%s\n", name);
+    fclose(fp);
+    return EXIT_SUCCESS;
+}
+
+
+GHashTable *rdhist() {
+    FILE *ifp;
+    char *mode = "r+";
+    char mailf[100];
+    char val[100];
+    GHashTable* hash = g_hash_table_new(g_str_hash, g_str_equal);
+
+
+    ifp = fopen("hist.dat", mode);
+
+    if (ifp == NULL) {
+        fprintf(stderr, "Can't open history!\n");
+        exit(EXIT_FAILURE);
+    }
+
+    while (fscanf(ifp, "%s", mailf) != EOF) {
+        char* hkey = malloc(sizeof(char) * 100);
+        sprintf(hkey, "%s", mailf);
+        g_hash_table_insert(hash, hkey, -1);
     }
 
     fclose(ifp);
-    /* free the mesage */
-    g_object_unref (message);
-
-    return EXIT_SUCCESS;
+    return hash;
 }
 
 int lsdir(const char* dirarg) {
     DIR* dir;
     char fpath[255];
+    GHashTable *histTable = rdhist();
 
     struct dirent *ent;
     if ((dir = opendir (dirarg)) != NULL) {
         while ((ent = readdir (dir)) != NULL) {
             if( strcmp(ent->d_name, ".") != 0 && strcmp(ent->d_name, "..") != 0 ) {
-                sprintf(fpath, "%s%s%s", dirarg, "/", ent->d_name);
-                readmail(fpath);
+                if (g_hash_table_lookup(histTable, ent->d_name) == NULL) {
+                    // write to history
+                    /* whist(ent->d_name); */
+
+                    g_hash_table_replace(histTable, ent->d_name, 1);
+                    // start notification process
+                    sprintf(fpath, "%s%s%s", dirarg, "/", ent->d_name);
+                    readmail(fpath);
+                } else {
+                    // set flag
+                    g_hash_table_replace(histTable, ent->d_name, 1);
+                }
             }
         }
         closedir (dir);
@@ -109,7 +137,29 @@ int lsdir(const char* dirarg) {
         return EXIT_FAILURE;
     }
 
+    FILE *fp;
+    int i;
+
+    fp = fopen("hist.dat", "w");
+
+    if (fp == NULL) {
+        printf("I couldn't open results.dat for writing.\n");
+        exit(0);
+    }
+
+    g_hash_table_foreach(histTable, (GHFunc)print_to_file, fp); // create new buffer with all keys having value 1 in hashtable..
+    fclose(fp);
+
+    g_hash_table_destroy(histTable);
     return EXIT_SUCCESS;
+}
+
+void print_to_file(gpointer key, gpointer value, gpointer user_data) {
+    FILE *fp = (FILE *) user_data;
+
+    if (value != -1) {
+        fprintf(fp, "%s\n", key);
+    }
 }
 
 int scanmail(const char* inboxDir) {
@@ -124,7 +174,6 @@ int scanmail(const char* inboxDir) {
 
     if (csource == 0) {
         for (p=result.gl_pathv; *p != NULL; ++p) {
-            printf("hell yeah! %s\n", p);
             lsdir(*p);
         }
         globfree(&result);
