@@ -44,10 +44,7 @@ int notify(GMimeMessage *message) {
     return EXIT_SUCCESS;
 }
 
-int readmail(const char *file) {
-    char *mode = "r+";
-    char key[100];
-    char val[100];
+int parse_mail(const char *file) {
     GMimeMessage *message;
     int fd;
 
@@ -58,18 +55,15 @@ int readmail(const char *file) {
 
     /* parse the message */
     message = parse_message (fd);
-
     notify(message);
     g_object_unref (message);
 
     return EXIT_SUCCESS;
 }
 
-GHashTable *rdhist() {
+GHashTable *read_notify_history() {
     FILE *ifp;
-    char *mode = "r+";
     char mailf[100];
-    char val[100];
     GHashTable* hash = g_hash_table_new(g_str_hash, g_str_equal);
 
 
@@ -90,10 +84,10 @@ GHashTable *rdhist() {
     return hash;
 }
 
-int lsdir(const char* dirarg) {
+int read_inbox_folder(const char* dirarg) {
     DIR* dir;
     char fpath[255];
-    GHashTable *histTable = rdhist();
+    GHashTable *histTable = read_notify_history();
 
     struct dirent *ent;
     if ((dir = opendir (dirarg)) != NULL) {
@@ -103,7 +97,7 @@ int lsdir(const char* dirarg) {
                     g_hash_table_replace(histTable, ent->d_name, 1);
                     // start notification process
                     sprintf(fpath, "%s%s%s", dirarg, "/", ent->d_name);
-                    readmail(fpath);
+                    parse_mail(fpath);
                 } else {
                     // set flag
                     g_hash_table_replace(histTable, ent->d_name, 1);
@@ -117,9 +111,8 @@ int lsdir(const char* dirarg) {
     }
 
     FILE *fp;
-    int i;
 
-    fp = fopen("hist.dat", "ab+");
+    fp = fopen("hist.dat", "wb+");
 
     if (fp == NULL) {
         printf("I couldn't open results.dat for writing.\n");
@@ -137,48 +130,43 @@ void print_to_file(gpointer key, gpointer value, gpointer user_data) {
     FILE *fp = (FILE *) user_data;
 
     if (value != -1) {
-        fprintf(fp, "%s\n", key);
+        fprintf(fp, "%s\n", (char *)key);
     }
 }
 
-int scanmail(const char* inboxDir) {
-    char* newDir = malloc(strlen(inboxDir)+5);
-    char buf[256];
-    int csource;
+int unglob_inbox_path(const char* glb_inbox_path) {
+    char glb_inbox_new_path[256];
     glob_t result;
-    char    **p;
+    char    **uglb_path;
 
-    snprintf(buf, sizeof buf, "%s%s", inboxDir, "/new");
-    csource = glob (buf, GLOB_TILDE, NULL, &result);
+    snprintf(glb_inbox_new_path, sizeof glb_inbox_new_path, "%s%s", glb_inbox_path, "/new");
 
-    if (csource == 0) {
-        for (p=result.gl_pathv; *p != NULL; ++p) {
-            lsdir(*p);
+    if (glob (glb_inbox_new_path, GLOB_TILDE, NULL, &result) == 0) {
+        for (uglb_path=result.gl_pathv; *uglb_path != NULL; ++uglb_path) {
+            read_inbox_folder(*uglb_path);
         }
         globfree(&result);
     }
 
-    lsdir(buf);
-
     return EXIT_SUCCESS;
 }
 
-int rdconf(const char* configFile) {
+int read_config_file(const char* config_file) {
     FILE *ifp;
     char *mode = "r+";
     char key[100];
     char val[100];
 
-    ifp = fopen(configFile, mode);
+    ifp = fopen(config_file, mode);
 
     if (ifp == NULL) {
-        fprintf(stderr, "Can't open config file %s!\n", configFile);
+        fprintf(stderr, "Can't open config file %s!\n", config_file);
         exit(EXIT_FAILURE);
     }
 
     while (fscanf(ifp, "%s %[^\n]", key, val) != EOF) {
         if (strcmp("Inbox", key) == 0) {
-            scanmail(val);
+            unglob_inbox_path(val);
         }
     }
 
@@ -192,7 +180,7 @@ int main(int argc, const char* argv[]) {
         return 0;
     }
 
-    rdconf(argv[1]);
+    read_config_file(argv[1]);
 
     return EXIT_SUCCESS;
 }
