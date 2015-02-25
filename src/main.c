@@ -8,6 +8,7 @@
 #include <glib.h>
 #include <unistd.h>
 #include <gmime/gmime.h>
+#include <gdk-pixbuf/gdk-pixbuf.h>
 
 #ifndef MAIN_H
 #include "inc/main.h"
@@ -32,15 +33,21 @@ parse_message (int fd)
 }
 
 int notify(GMimeMessage *message) {
+    char notiftext[255];
+    sprintf(notiftext, "<u>%s</u>", g_mime_message_get_subject(message));
+
     NotifyNotification *n;
     notify_init("mbangnotify");
-    n = notify_notification_new (g_mime_message_get_subject(message),NULL, NULL);
-    notify_notification_set_timeout(n, 3000); //3 seconds
+
+    n = notify_notification_new (g_mime_message_get_sender(message), notiftext, "/usr/share/icons/Numix/64x64/actions/mail_new.svg");
+
+    notify_notification_set_timeout(n, 10000); //3 seconds
     if (!notify_notification_show (n, NULL)) {
         g_error("Failed to send notification.\n");
         return 1;
     }
     g_object_unref(G_OBJECT(n));
+
     return EXIT_SUCCESS;
 }
 
