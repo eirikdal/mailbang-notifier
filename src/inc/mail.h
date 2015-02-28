@@ -11,15 +11,11 @@
 #include <string.h>
 #include <glib.h>
 #include <gmime/gmime.h>
-#include <gdk-pixbuf/gdk-pixbuf.h>
-#include <libnotify/notify.h>
 
 __BEGIN_DECLS
-void print_to_file(gpointer, gpointer, gpointer);
-int read_config_file(const char*);
 static GMimeMessage *parse_message(int);
+int inbox_new_foreach(const char*, void (*)(char*));
 int parse_mail(const char*);
-int notify(GMimeMessage*);
 __END_DECLS
 
 #endif  /* _M_MAIN_H */
