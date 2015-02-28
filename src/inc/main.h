@@ -20,6 +20,9 @@ int read_config_file(const char*);
 static GMimeMessage *parse_message(int);
 int parse_mail(const char*);
 int notify(GMimeMessage*);
+
+void
+do_notify(gpointer, gpointer, gpointer)
 __END_DECLS
 
 #endif  /* _M_MAIN_H */

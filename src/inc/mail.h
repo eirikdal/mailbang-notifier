@@ -13,9 +13,7 @@
 #include <gmime/gmime.h>
 
 __BEGIN_DECLS
-static GMimeMessage *parse_message(int);
-int inbox_new_foreach(const char*, void (*)(char*));
-int parse_mail(const char*);
+void get_message(const char*, GMimeMessage **out);
 __END_DECLS
 
 #endif  /* _M_MAIN_H */

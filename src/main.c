@@ -21,54 +21,16 @@ int notify(GMimeMessage *message) {
     return EXIT_SUCCESS;
 }
 
-static
-void print_to_file(gpointer key, gpointer value, gpointer user_data) {
-    FILE *fp = (FILE *) user_data;
-
-    if (value != (int*) (-1)) {
-        fprintf(fp, "%s\n", (char *)key);
-    }
-}
-
-void read_inbox_folder(const char* dirarg) {
-    DIR* dir;
-    GHashTable *histTable = read_notify_history();
-    printf("%s\n", dirarg);
-    if ((dir = opendir (dirarg)) != NULL) {
-        struct dirent *ent;
-        while ((ent = readdir (dir)) != NULL) {
-            if( strcmp(ent->d_name, ".") != 0 && strcmp(ent->d_name, "..") != 0 ) {
-                if (g_hash_table_lookup(histTable, ent->d_name) == NULL) {
-                    g_hash_table_replace(histTable, ent->d_name, (gpointer) 1);
-                    // start notification process
-                    char fpath[255];
-                    sprintf(fpath, "%s%s%s", dirarg, "/", ent->d_name);
-                    parse_mail(fpath);
-                } else {
-                    // set flag
-                    int val = 1;
-                    g_hash_table_replace(histTable, ent->d_name, (void *) &val);
-                }
-            }
+void
+do_notify(gpointer key, gpointer value, gpointer user_data) {
+    if (value != (int *) FOUND) {
+        GMimeMessage *mail;
+        get_message(key, &mail);
+        if (notify(mail) == EXIT_SUCCESS) {
+            value = (void *) FOUND;
         }
-        closedir (dir);
-    } else {
-        perror ("");
+        g_object_unref(mail);
     }
-
-    FILE *fp;
-
-    fp = fopen("hist.dat", "wb+");
-
-    if (fp == NULL) {
-        printf("Couldn't open file for writing.\n");
-        exit(0);
-    }
-
-    g_hash_table_foreach(histTable, (GHFunc)print_to_file, fp);
-    fclose(fp);
-
-    g_hash_table_destroy(histTable);
 }
 
 int main(int argc, const char* argv[]) {
@@ -79,7 +41,7 @@ int main(int argc, const char* argv[]) {
 
     char inbox_path[100];
     if (mb_lookup_key(argv[1], "Inbox", inbox_path) == EXIT_SUCCESS) {
-        inbox_new_foreach(inbox_path, read_inbox_folder);
+        inbox_apply(inbox_path, do_notify);
     }
     return EXIT_SUCCESS;
 }

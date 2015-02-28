@@ -15,40 +15,15 @@ parse_message (int fd)
     return message;
 }
 
-int
-inbox_new_foreach (const char* glb_inbox_path, void (*func)(char*)) {
-    char glb_inbox_new_path[256];
-    glob_t result;
-
-    snprintf(glb_inbox_new_path, sizeof glb_inbox_new_path, "%s%s", glb_inbox_path, "/new");
-
-    if (glob (glb_inbox_new_path, GLOB_TILDE, NULL, &result) == 0) {
-        char    **uglb_path;
-        for (uglb_path=result.gl_pathv; *uglb_path != NULL; ++uglb_path) {
-
-            (*func)(*uglb_path);
-        }
-        globfree(&result);
-    }
-
-    return EXIT_SUCCESS;
-}
-
-
-int parse_mail(const char *file) {
-    GMimeMessage *message;
+void
+get_message(const char *file, GMimeMessage **out) {
     int fd;
 
     if ((fd = open (file, O_RDONLY, 0)) == -1) {
         fprintf (stderr, "Cannot open message `%s': %s\n", file, g_strerror (errno));
-        return 0;
     }
 
     /* parse the message */
-    message = parse_message (fd);
-    notify(message);
-    g_object_unref (message);
-
-    return EXIT_SUCCESS;
+    *out = parse_message (fd);
 }
 
