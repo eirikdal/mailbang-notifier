@@ -11,36 +11,36 @@ write_to_notify_history(gpointer key, gpointer value, gpointer user_data) {
 }
 
 static void
-compare_with_history(const char *fpath, GHashTable *histTable) {
-    if (g_hash_table_lookup(histTable, fpath) == NULL) {
-        g_hash_table_replace(histTable, (void *) fpath, (void *) NOT_FOUND);
+compare_with_history(const char *mail, GHashTable *hist_table) {
+    if (g_hash_table_lookup(hist_table, mail) == NULL) {
+        g_hash_table_replace(hist_table, (void *) mail, (void *) NOT_FOUND);
     } else {
-        g_hash_table_replace(histTable, (void *) fpath, (void *) FOUND);
+        g_hash_table_replace(hist_table, (void *) mail, (void *) FOUND);
     }
 }
 
 static void
 inbox_foreach(const char* inbox_folder, void (*func)(gpointer, gpointer, gpointer)) {
-    DIR* dir;
-    GHashTable *histTable = read_notify_history();
+    DIR* mailent;
+    GHashTable *hist_table = read_notification_history();
 
-    if ((dir = opendir (inbox_folder)) != NULL) {
+    if ((mailent = opendir (inbox_folder)) != NULL) {
         struct dirent *ent;
-        while ((ent = readdir (dir)) != NULL) {
+        while ((ent = readdir (mailent)) != NULL) {
             if( strcmp(ent->d_name, ".") != 0 && strcmp(ent->d_name, "..") != 0 ) {
                 char fpath[255];
                 sprintf(fpath, "%s%s%s", inbox_folder, "/", ent->d_name);
-                compare_with_history(fpath, histTable);
+                compare_with_history(fpath, hist_table);
             }
         }
-        closedir (dir);
+        closedir (mailent);
     } else {
         perror ("");
     }
 
-    g_hash_table_foreach(histTable, (GHFunc)func, NULL);
-    write_notification_history(histTable);
-    g_hash_table_destroy(histTable);
+    g_hash_table_foreach(hist_table, (GHFunc)func, NULL);
+    write_notification_history(hist_table);
+    g_hash_table_destroy(hist_table);
 }
 
 int
@@ -62,17 +62,17 @@ inbox_apply (const char* glb_inbox_path, void (*func)(gpointer, gpointer, gpoint
 }
 
 int
-write_notification_history(GHashTable *histTable) {
+write_notification_history(GHashTable *hist_table) {
     FILE *fp;
 
-    fp = fopen("hist.dat", "wb+");
+    fp = fopen(HISTORY_FILE, "wb+");
 
     if (fp == NULL) {
         printf("Couldn't open file for writing.\n");
         exit(0);
     }
 
-    g_hash_table_foreach(histTable, (GHFunc)write_to_notify_history, fp);
+    g_hash_table_foreach(hist_table, (GHFunc)write_to_notify_history, fp);
     fclose(fp);
 
     return EXIT_SUCCESS;
@@ -103,13 +103,13 @@ mb_lookup_key (const char *config_file, const char *key, char *out) {
 }
 
 GHashTable
-*read_notify_history() {
+*read_notification_history() {
     FILE *ifp;
     char mailf[100];
     GHashTable* hash = g_hash_table_new(g_str_hash, g_str_equal);
 
 
-    ifp = fopen("hist.dat", "ab+");
+    ifp = fopen(HISTORY_FILE, "ab+");
 
     if (ifp == NULL) {
         fprintf(stderr, "Can't open history!\n");
