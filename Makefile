@@ -10,10 +10,16 @@ OBJDIR   = obj
 BINDIR   = bin
 
 SOURCES  := $(wildcard $(SRCDIR)/*.c)
-INCLUDES := $(wildcard $(SRCDIR)/*.h)
+INCLUDES := $(wildcard $(SRCDIR)/inc/*.h)
 OBJECTS  := $(SOURCES:$(SRCDIR)/%.c=$(OBJDIR)/%.o)
-rm       = rm -f
+mk		 = mkdir -p 
+rm       = rm -rf 
 
+${OBJDIR}:
+	@$(mk) $(OBJDIR)
+
+${BINDIR}:
+	@$(mk) $(BINDIR)
 
 $(BINDIR)/$(TARGET): $(OBJECTS)
 	@$(LINKER) $@ $(LFLAGS) $(OBJECTS)
@@ -23,8 +29,12 @@ $(OBJECTS): $(OBJDIR)/%.o : $(SRCDIR)/%.c
 
 .PHONEY: clean
 clean:
-	@$(rm) $(OBJECTS)
+	@$(rm) $(OBJECTS) $(OBJDIR) $(BINDIR)
+
+check-syntax:
+	@$(CC) $(CLFAGS) -o nul -S ${CHK_SOURCES}
 
 .PHONEY: remove
 remove: clean
 	@$(rm) $(BINDIR)/$(TARGET)
+
