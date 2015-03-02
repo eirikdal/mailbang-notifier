@@ -20,9 +20,12 @@
 
 #define HISTORY_FILE "history"
 
+#include "notify.h"
+#include "mail.h"
+
 #endif
 
 int mb_lookup_key (const char*, const char*, char*);
-int inbox_apply(const char*, void (*)(gpointer, gpointer, gpointer));
+int inbox_apply(const char*, void (*)(gpointer, gpointer, gpointer), struct mbangopt);
 int write_notification_history(GHashTable *);
 GHashTable *read_notification_history(void);

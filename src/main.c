@@ -1,47 +1,70 @@
-#include "inc/file.h"
-#include "inc/mail.h"
 #include "inc/main.h"
 
-int notify(GMimeMessage *message) {
-    char notiftext[255];
-    sprintf(notiftext, "<u>%s</u>", g_mime_message_get_subject(message));
+const char *argp_program_version =
+    "mbangnotify 1.0";
+const char *argp_program_bug_address =
+    "<eirik.haukedal@gmail.com>";
 
-    NotifyNotification *n;
-    notify_init("mbangnotify");
+/* Program documentation. */
+static char doc[] =
+    "mbangnotify - mailscanner integration with libnotify and isync";
 
-    n = notify_notification_new (g_mime_message_get_sender(message), notiftext, "/usr/share/icons/Numix/64x64/actions/mail_new.svg");
+/* A description of the arguments we accept. */
+static char args_doc[] = "CONFIG";
 
-    notify_notification_set_timeout(n, 10000);
-    if (!notify_notification_show (n, NULL)) {
-        g_error("Failed to send notification.\n");
-        return 1;
-    }
-    g_object_unref(G_OBJECT(n));
+/* The options we understand. */
+static struct argp_option options[] = {
+    {"icon",  'i', 0,      0,  "Use custom icon" },
+    { 0 }
+};
 
-    return EXIT_SUCCESS;
-}
+struct arguments
+{
+    char *args[1];
+    char *icon;
+};
 
-void
-do_notify(gpointer key, gpointer value, gpointer user_data) {
-    if (value != (int *) FOUND) {
-        GMimeMessage *mail;
-        get_message(key, &mail);
-        if (notify(mail) == EXIT_SUCCESS) {
-            value = (void *) FOUND;
+static error_t
+parse_opt (int key, char *arg, struct argp_state *state)
+{
+    struct arguments *arguments = state->input;
+
+    switch (key)
+        {
+        case 'i':
+            arguments->icon = arg;
+            break;
+        case ARGP_KEY_ARG:
+            if (state->arg_num > 1) {
+                argp_usage (state);
+            }
+            arguments->args[state->arg_num] = arg;
+            break;
+        case ARGP_KEY_END:
+            if (state->arg_num < 1)
+                argp_usage (state);
+            break;
+        default:
+            return ARGP_ERR_UNKNOWN;
         }
-        g_object_unref(mail);
-    }
+    return 0;
 }
+
+/* Our argp parser. */
+static struct argp argp = { options, parse_opt, args_doc, doc };
 
 int main(int argc, const char* argv[]) {
-    if (argc != 2) {
-        printf( "usage: %s <mailbox>", argv[0] );
-        return 0;
-    }
+    struct arguments arguments;
+
+    /* Parse our arguments; every option seen by parse_opt will
+       be reflected in arguments. */
+    argp_parse (&argp, argc, argv, 0, 0, &arguments);
+
+    struct mbangopt opts = { .icon = arguments.icon };
 
     char inbox_path[100];
-    if (mb_lookup_key(argv[1], "Inbox", inbox_path) == EXIT_SUCCESS) {
-        inbox_apply(inbox_path, do_notify);
+    if (mb_lookup_key(arguments.args[0], "Inbox", inbox_path) == EXIT_SUCCESS) {
+        inbox_apply(inbox_path, do_notify, opts);
     }
     return EXIT_SUCCESS;
 }
