@@ -3,7 +3,7 @@
 const char *argp_program_version =
     "mbangnotify 1.0";
 const char *argp_program_bug_address =
-    "<eirik.haukedal@gmail.com>";
+    "<https://github.com/eirikdal/mbangnotify/issues>";
 
 /* Program documentation. */
 static char doc[] =
