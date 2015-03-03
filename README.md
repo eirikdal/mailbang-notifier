@@ -1,5 +1,5 @@
-# mailbang-notifier
-Mailbox notifier for Openbox + isync
+# mbangnotify
+Mailboxscanner with notifications using isync and libnotify
 
 Use it however you like. Personally, I use it with mu4e and emacs, like this:
 
